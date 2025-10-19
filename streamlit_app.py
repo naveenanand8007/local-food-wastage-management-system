@@ -519,7 +519,7 @@ document.addEventListener('DOMContentLoaded', function() {
 # Database connection function
 def get_db_connection():
     """Create and return a database connection"""
-    db_path = r"food_wastage.db"
+    db_path = r"C:\Users\Naveen Anand\Downloads\Python\test\food_wastage.db"
     conn = sqlite3.connect(db_path)
     return conn
 
@@ -861,7 +861,13 @@ elif nav_options[selected_page] == "analytics":
         "Question 10: Distribution of claim statuses": 10,
         "Question 11: Average claimed quantity per receiver": 11,
         "Question 12: Meal type with most claims": 12,
-        "Question 13: Total quantity by provider (ordered)": 13
+        "Question 13: Total quantity by provider (ordered)": 13,
+        "Question 14: City with highest total claimed quantity": 14,
+        "Question 15: Food items claimed by the most receivers": 15,
+        "Question 16: Completed claims percentage split by meal type": 16,
+        "Question 17: Receiver claim success rate": 17,
+        "Question 18: Food types mostly pending": 18,
+        "Question 19: City with highest number of providers": 19
     }
     
     selected_question = st.selectbox("Select a question to analyze:", list(question_options.keys()))
@@ -1197,6 +1203,148 @@ elif nav_options[selected_page] == "analytics":
                 chart_data = df13.set_index('Name')['total_quantity']
                 st.bar_chart(chart_data)
         
+        elif question_num == 14:
+            st.subheader("1️⃣4️⃣ Which city has received the highest total quantity of claimed food?")
+            query14 = """
+            SELECT 
+                r.City,
+                SUM(f.Quantity) AS total_claimed_quantity
+            FROM 
+                claims c
+            JOIN 
+                receivers r
+                ON c.Receiver_ID = r.Receiver_ID
+            JOIN 
+                food_listings f
+                ON c.Food_ID = f.Food_ID
+            GROUP BY 
+                r.City
+            ORDER BY 
+                total_claimed_quantity DESC
+            LIMIT 1;
+            """
+            cursor.execute(query14)
+            result14 = cursor.fetchall()
+            df14 = pd.DataFrame(result14, columns=["City","total_claimed_quantity"])
+            display_results(df14, "City with Highest Total Claimed Quantity")
+        
+        elif question_num == 15:
+            st.subheader("1️⃣5️⃣ Which food items have been claimed by the most receivers?")
+            query15 = """
+            SELECT 
+                f.Food_Name,
+                COUNT(DISTINCT c.Receiver_ID) AS unique_receivers
+            FROM 
+                claims c
+            JOIN 
+                food_listings f
+                ON c.Food_ID = f.Food_ID
+            GROUP BY 
+                f.Food_Name
+            ORDER BY 
+                unique_receivers DESC;
+            """
+            cursor.execute(query15)
+            result15 = cursor.fetchall()
+            df15 = pd.DataFrame(result15, columns=["Food_Name","unique_receivers"])
+            display_results(df15, "Food Items Claimed by the Most Receivers")
+            
+            if not df15.empty:
+                st.subheader("📊 Visualization")
+                chart_data = df15.set_index('Food_Name')['unique_receivers']
+                st.bar_chart(chart_data)
+        
+        elif question_num == 16:
+            st.subheader("1️⃣6️⃣ For completed claims — percentage split by meal type")
+            query16 = """
+            WITH completed AS (
+              SELECT c.Claim_ID, f.Meal_Type
+              FROM claims c
+              JOIN food_listings f ON c.Food_ID = f.Food_ID
+              WHERE c.Status = 'Completed'
+            )
+            SELECT
+              Meal_Type,
+              COUNT(*) AS count_completed,
+              ROUND( (COUNT(*) * 100.0) / (SELECT COUNT(*) FROM completed), 2) AS percentage_of_completed
+            FROM completed
+            GROUP BY Meal_Type
+            ORDER BY count_completed DESC;
+            """
+            cursor.execute(query16)
+            result16 = cursor.fetchall()
+            df16 = pd.DataFrame(result16, columns=["Meal_Type","count_completed","percentage_of_completed"])
+            display_results(df16, "Completed Claims Percentage by Meal Type")
+            
+            if not df16.empty:
+                st.subheader("📊 Visualization")
+                chart_data = df16.set_index('Meal_Type')['count_completed']
+                st.bar_chart(chart_data)
+        
+        elif question_num == 17:
+            st.subheader("1️⃣7️⃣ Receiver claim success rate")
+            query17 = """
+            SELECT 
+                r.Receiver_ID,
+                r.Name,
+                ROUND(
+                    (SUM(CASE WHEN c.Status = 'Completed' THEN 1 ELSE 0 END) * 100.0) / COUNT(*), 
+                    2
+                ) AS success_rate_percent
+            FROM 
+                claims c
+            JOIN 
+                receivers r
+                ON c.Receiver_ID = r.Receiver_ID
+            GROUP BY 
+                r.Receiver_ID, r.Name;
+            """
+            cursor.execute(query17)
+            result17 = cursor.fetchall()
+            df17 = pd.DataFrame(result17, columns=["Receiver_ID","Name","success_rate_percent"])
+            display_results(df17, "Receiver Claim Success Rate")
+            
+            if not df17.empty:
+                st.subheader("📊 Visualization")
+                chart_data = df17.set_index('Name')['success_rate_percent']
+                st.bar_chart(chart_data)
+        
+        elif question_num == 18:
+            st.subheader("1️⃣8️⃣ Food types that are mostly pending")
+            query18 = """
+            SELECT 
+                f.Food_Type,
+                COUNT(*) AS pending_count
+            FROM claims c
+            JOIN food_listings f ON c.Food_ID = f.Food_ID
+            WHERE c.Status = 'Pending'
+            GROUP BY f.Food_Type
+            ORDER BY pending_count DESC;
+            """
+            cursor.execute(query18)
+            result18 = cursor.fetchall()
+            df18 = pd.DataFrame(result18, columns=["Food_Type","pending_count"])
+            display_results(df18, "Food Types Mostly Pending")
+            
+            if not df18.empty:
+                st.subheader("📊 Visualization")
+                chart_data = df18.set_index('Food_Type')['pending_count']
+                st.bar_chart(chart_data)
+        
+        elif question_num == 19:
+            st.subheader("1️⃣9️⃣ City with the highest number of providers")
+            query19 = """
+                SELECT City, COUNT(*) AS Provider_Count
+                FROM providers
+                GROUP BY City
+                ORDER BY Provider_Count DESC
+                LIMIT 1;
+            """
+            cursor.execute(query19)
+            result19 = cursor.fetchall()
+            df19 = pd.DataFrame(result19, columns=["City", "Provider_Count"])
+            display_results(df19, "City with Highest Number of Providers")
+        
         conn.close()
         
     except Exception as e:
@@ -1210,4 +1358,3 @@ st.markdown("""
     <p>♻️ Local Waste Management System | Built with Streamlit</p>
 </div>
 """, unsafe_allow_html=True)
-
