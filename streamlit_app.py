@@ -519,7 +519,7 @@ document.addEventListener('DOMContentLoaded', function() {
 # Database connection function
 def get_db_connection():
     """Create and return a database connection"""
-    db_path = r"C:\Users\Naveen Anand\Downloads\Mini project\LFWM\food_wastage.db"
+    db_path = r"food_wastage.db"
     conn = sqlite3.connect(db_path)
     return conn
 
@@ -1210,3 +1210,4 @@ st.markdown("""
     <p>♻️ Local Waste Management System | Built with Streamlit</p>
 </div>
 """, unsafe_allow_html=True)
+
